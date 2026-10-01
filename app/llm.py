@@ -111,7 +111,7 @@ class SQLWriter:
             )
 
         try:
-            response = self._client.beta.messages.create(
+            response = self._client.messages.create(
                 model=self._settings.model,
                 max_tokens=16000,
                 system=self._system,
@@ -120,9 +120,6 @@ class SQLWriter:
                     "effort": self._settings.effort,
                     "format": {"type": "json_schema", "schema": RESPONSE_SCHEMA},
                 },
-                # On a safety decline, the API re-runs the request on a fallback model.
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
             )
         except anthropic.APITimeoutError as e:
             raise LLMError(f"Claude did not respond within {self._settings.llm_timeout_s:g}s. Try again.") from e

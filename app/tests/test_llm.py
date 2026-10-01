@@ -28,7 +28,7 @@ def _response(payload=None, stop_reason="end_turn", text=None):
 class FakeClient:
     def __init__(self, result):
         self.calls = []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
+        self.messages = SimpleNamespace(create=self._create)
         self._result = result
 
     def _create(self, **kwargs):

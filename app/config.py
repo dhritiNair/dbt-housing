@@ -18,7 +18,7 @@ class ConfigError(RuntimeError):
 class Settings:
     # repr=False keeps the key out of logs, tracebacks and st.write(settings).
     api_key: str = field(repr=False)
-    model: str = "claude-opus-5-5"
+    model: str = "claude-sonnet-5-5"
     effort: str = "medium"
     llm_timeout_s: float = 60.0
     db_path: str = str(PROJECT_ROOT / "data" / "housing.duckdb")
