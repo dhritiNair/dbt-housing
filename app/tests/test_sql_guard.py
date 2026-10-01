@@ -195,3 +195,79 @@ def test_output_is_regenerated_from_parse_tree():
     # Comments are stripped, so nothing uninspected reaches execution.
     out = validate(f"select * from {SC} -- ; drop table x").sql
     assert "drop" not in out.lower() and "--" not in out and "/*" not in out
+
+
+# --- round 2: adversarial ---------------------------------------------------
+
+@pytest.mark.parametrize("sql", [
+    # case and quoting: DuckDB matches identifiers case-insensitively, quoted or not
+    f'select * from "{SC.upper()}"',
+    "SeLeCt * FrOm Mart_Bay_Area_Scorecard",
+    # comma join between marts
+    f"select * from {SC}, {PT}",
+    # FROM-first syntax
+    f"from {SC} select county, market_tilt",
+    f"from {SC} where market_tilt = 'seller'",
+    # nested CTEs that legitimately shadow a forbidden name with mart data
+    f"with m as (select * from {SC}) "
+    f"select * from (with raw_redfin_county as (select * from m) select * from raw_redfin_county)",
+    f"with x as (select * from {SC}) select * from (with x as (select * from x) select * from x)",
+    f"with raw_redfin_county as (select * from {SC}) "
+    f"select * from (with y as (select * from raw_redfin_county) select * from y)",
+    # an alias is not a table reference
+    f"select * from {SC} as raw_redfin_county",
+    # PIVOT over a mart
+    f"select * from (pivot {PROP} on property_type using sum(homes_sold) group by county)",
+])
+def test_round2_accepts(sql):
+    validate(sql)
+
+
+@pytest.mark.parametrize("sql", [
+    # case and quoting
+    'SELECT * FROM "Raw_Redfin_County"',
+    "SELECT * FROM RAW_REDFIN_COUNTY",
+    f'select * from "main.{SC}"',
+    f'select * from "{SC} "',
+    'select * from "main"."raw_redfin_county"',
+    f"DrOp TaBlE {SC}",
+    # scalar subqueries on non-mart tables, in every clause
+    f"select county, (select max(median_sale_price) from stg_redfin__county_market) from {SC}",
+    f"select * from {SC} where exists (select 1 from raw_redfin_county)",
+    f"select * from {SC} order by (select count(*) from int_county_monthly)",
+    f"select county, case when (select 1 from bay_area_counties limit 1) = 1 then 1 end from {SC}",
+    f"select county, count(*) from {PT} group by county "
+    f"having count(*) > (select count(*) from raw_redfin_county)",
+    # comma, lateral, natural and positional joins to non-mart tables
+    f"select * from {SC}, raw_redfin_county",
+    f"select * from {SC}, lateral (select * from raw_redfin_county) r",
+    f"select * from {SC} natural join stg_redfin__county_market",
+    f"select * from {SC} positional join raw_redfin_county",
+    # FROM-first syntax
+    "from raw_redfin_county",
+    "from raw_redfin_county select county",
+    # nested CTE shadowing: an inner CTE is not visible outside its subquery
+    "with a as (with raw_redfin_county as (select 1) select * from raw_redfin_county) "
+    "select * from raw_redfin_county",
+    "with a as (select * from (with b as (select 1) select * from raw_redfin_county)) select * from a",
+    # semicolon outside a string
+    "select 'x'; drop table y",
+    # other statement forms
+    "table raw_redfin_county",
+    "pivot raw_redfin_county on property_type using sum(homes_sold)",
+    "select * from (pivot raw_redfin_county on property_type using sum(homes_sold))",
+    "values (1), (2)",
+])
+def test_round2_rejects(sql):
+    with pytest.raises(SQLGuardError):
+        validate(sql)
+
+
+@pytest.mark.parametrize("sql, literal", [
+    (f"select * from {SC} where county = 'a; drop table x'", "'a; drop table x'"),
+    (f"select * from {SC} where county = 'it''s; drop table x'", "'it''s; drop table x'"),
+    (f"select $$; drop table x$$ as s from {SC}", "'; drop table x'"),
+])
+def test_semicolon_inside_string_stays_in_literal(sql, literal):
+    out = validate(sql).sql
+    assert literal in out and out.count(";") == 1

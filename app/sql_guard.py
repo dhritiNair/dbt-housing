@@ -74,7 +74,10 @@ def validate(sql: str, max_rows: int = DEFAULT_MAX_ROWS) -> ValidatedSQL:
     tree = statements[0]
 
     if not isinstance(tree, (exp.Select, exp.SetOperation)):
-        raise SQLGuardError(f"Only SELECT queries are allowed, got {tree.key.upper()}.")
+        # sqlglot misreads some statements (bare CHECKPOINT parses as a column),
+        # so name the statement by its first word rather than the node type.
+        first_word = sql.strip().split(None, 1)[0].upper()
+        raise SQLGuardError(f"Only SELECT queries are allowed, got {first_word}.")
 
     for node in tree.walk():
         if isinstance(node, _FORBIDDEN_NODES):
