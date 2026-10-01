@@ -1,0 +1,2 @@
+sqlglot>=30,<31
+pytest>=8
