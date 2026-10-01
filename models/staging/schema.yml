@@ -45,17 +45,3 @@ models:
         description: Median days on market for sold homes.
       - name: avg_sale_to_list
         description: Average sale-to-list price ratio (decimal, e.g. 1.02 = 2% over asking).
-  - name: mart_property_type_trends
-    description: "Monthly price history for each Bay Area county and property type, excluding the All Residential aggregate. Grain is county, month, and property type."
-    columns:
-      - name: property_type
-        description: "One of the four component property types."
-        tests:
-          - accepted_values:
-              values: ['Condo/Co-op', 'Multi-Family (2-4 Unit)', 'Single Family Residential', 'Townhouse']
-      - name: ma_data_quality
-        description: "full window when the 12-month average rests on 12 consecutive months of prices, otherwise insufficient data."
-        tests:
-          - not_null
-          - accepted_values:
-              values: ['full window', 'insufficient data']
