@@ -1,0 +1,14 @@
+# dbt profiles — keeps credentials/config out of the project.
+# Run dbt with:  dbt run --profiles-dir .
+# Or set: export DBT_PROFILES_DIR=/path/to/dbt-housing
+
+bay_area_housing:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Local DuckDB file — no cloud account needed.
+      # Swap this block for a BigQuery/Snowflake target and
+      # every model below runs unchanged. That's the point of dbt.
+      path: data/housing.duckdb
+      threads: 4

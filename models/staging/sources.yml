@@ -1,0 +1,46 @@
+version: 2
+
+sources:
+  - name: redfin
+    schema: main
+    description: >
+      Raw Redfin Data Center market tracker, county grain, loaded by
+      scripts/load_raw.py into DuckDB. Weekly (period_duration = 7) and
+      monthly (period_duration = 30) rows; seasonally adjusted and
+      not-seasonally-adjusted variants; one row per property type.
+      https://www.redfin.com/news/data-center/
+    tables:
+      - name: county_market_tracker
+        identifier: raw_redfin_county
+        description: County-level market metrics, California only.
+        columns:
+          - name: period_begin
+            description: First day of the observation period.
+          - name: period_end
+            description: Last day of the observation period.
+          - name: period_duration
+            description: 7 = weekly, 30 = monthly.
+          - name: region
+            description: County name, e.g. 'Alameda County, CA'.
+          - name: state_code
+            description: Two-letter state code.
+          - name: property_type
+            description: e.g. 'All Residential', 'Single Family Residential'.
+          - name: is_seasonally_adjusted
+            description: Whether the metrics are seasonally adjusted.
+          - name: median_sale_price
+            description: Median closed sale price in the period.
+          - name: median_sale_price_yoy
+            description: Year-over-year change in median sale price (decimal).
+          - name: homes_sold
+            description: Number of homes sold (closed) in the period.
+          - name: new_listings
+            description: Number of new listings in the period.
+          - name: inventory
+            description: Active listings at end of period.
+          - name: months_of_supply
+            description: Inventory divided by monthly sales pace.
+          - name: median_dom
+            description: Median days on market for sold homes.
+          - name: avg_sale_to_list
+            description: Average sale-to-list-price ratio (decimal).
