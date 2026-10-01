@@ -8,3 +8,5 @@ data/*.duckdb.wal
 __pycache__/
 .user.yml
 data/raw/
+.env
+.Rhistory
