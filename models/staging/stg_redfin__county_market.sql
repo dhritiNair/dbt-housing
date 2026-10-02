@@ -13,8 +13,8 @@ renamed as (
         cast(period_end as date) as period_end,
 
         region as county,
-        state_code,
-        property_type,
+        state_code as state_code,
+        property_type as property_type,
 
         cast(median_sale_price as double) as median_sale_price,
         cast(median_sale_price_yoy as double) as median_sale_price_yoy,

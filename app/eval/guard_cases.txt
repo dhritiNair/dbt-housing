@@ -1,0 +1,169 @@
+ACCEPTED (26)
+  ok   select * from mart_bay_area_scorecard
+  ok   select county, median_sale_price from mart_bay_area_scorecard order by 2 desc;
+  ok   from mart_bay_area_scorecard
+  ok   select count(*) from mart_bay_area_scorecard where market_tilt = 'seller'
+  ok   select * from mart_bay_area_price_trends where period_begin = (select max(period_begin) from mart_bay_area_price_trends)
+  ok   with latest as (select max(period_begin) as m from mart_bay_area_price_trends) select p.* from mart_bay_area_price_trends p join latest on p.period_begin = latest.m
+  ok   with a as (select * from mart_property_type_trends), b as (select * from a where homes_sold > 0) select * from b
+  ok   select county from mart_bay_area_scorecard union all select county from mart_bay_area_price_trends
+  ok   select * from mart_property_type_trends where county in (select county from mart_bay_area_scorecard where market_tilt = 'buyer')
+  ok   select county, year(period_begin) y, avg(median_sale_price) from mart_bay_area_price_trends group by all
+  ok   select * from "mart_bay_area_scorecard"
+  ok   select * from MART_BAY_AREA_SCORECARD
+  ok   -- comment select * from mart_bay_area_scorecard /* inline */
+  ok   select * from "MART_BAY_AREA_SCORECARD"
+  ok   SeLeCt * FrOm Mart_Bay_Area_Scorecard
+  ok   select * from mart_bay_area_scorecard, mart_bay_area_price_trends
+  ok   from mart_bay_area_scorecard select county, market_tilt
+  ok   from mart_bay_area_scorecard where market_tilt = 'seller'
+  ok   with m as (select * from mart_bay_area_scorecard) select * from (with raw_redfin_county as (select * from m) select * from raw_redfin_county)
+  ok   with x as (select * from mart_bay_area_scorecard) select * from (with x as (select * from x) select * from x)
+  ok   with raw_redfin_county as (select * from mart_bay_area_scorecard) select * from (with y as (select * from raw_redfin_county) select * from y)
+  ok   select * from mart_bay_area_scorecard as raw_redfin_county
+  ok   select * from (pivot mart_property_type_trends on property_type using sum(homes_sold) group by county)
+  ok   select * from mart_bay_area_scorecard where county = 'a; drop table x'
+  ok   select * from mart_bay_area_scorecard where county = 'it''s; drop table x'
+  ok   select $$; drop table x$$ as s from mart_bay_area_scorecard
+
+REJECTED (70)
+  no   ''
+         -> Empty query.
+  no   '   '
+         -> Empty query.
+  no   ;
+         -> Expected exactly one statement, got 0.
+  no   select * from 'data/raw/county_market_tracker.tsv000.gz'
+         -> Table 'data/raw/county_market_tracker.tsv000.gz' is not allowed.
+  no   select * from 'https://example.com/x.parquet'
+         -> Table 'https://example.com/x.parquet' is not allowed.
+  no   select * from mart_bay_area_scorecard; drop table mart_bay_area_scorecard
+         -> Expected exactly one statement, got 2.
+  no   select * from mart_bay_area_scorecard; select * from mart_bay_area_price_trends
+         -> Expected exactly one statement, got 2.
+  no   select * from raw_redfin_county
+         -> Table 'raw_redfin_county' is not allowed.
+  no   select * from stg_redfin__county_market
+         -> Table 'stg_redfin__county_market' is not allowed.
+  no   select * from int_county_monthly
+         -> Table 'int_county_monthly' is not allowed.
+  no   select * from bay_area_counties
+         -> Table 'bay_area_counties' is not allowed.
+  no   select * from information_schema.tables
+         -> Qualified table names are not allowed: information_schema.tables.
+  no   select * from duckdb_tables
+         -> Table 'duckdb_tables' is not allowed.
+  no   drop table mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got DROP.
+  no   delete from mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got DELETE.
+  no   update mart_bay_area_scorecard set county = 'x'
+         -> Only SELECT queries are allowed, got UPDATE.
+  no   insert into mart_bay_area_scorecard select * from mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got INSERT.
+  no   create table t as select * from mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got CREATE.
+  no   alter table mart_bay_area_scorecard rename to t
+         -> Only SELECT queries are allowed, got ALTER.
+  no   attach 'other.duckdb' as o
+         -> Only SELECT queries are allowed, got ATTACH.
+  no   detach o
+         -> Only SELECT queries are allowed, got DETACH.
+  no   copy mart_bay_area_scorecard to 'out.csv'
+         -> Only SELECT queries are allowed, got COPY.
+  no   copy (select * from mart_bay_area_scorecard) to 'out.csv'
+         -> Only SELECT queries are allowed, got COPY.
+  no   install httpfs
+         -> Only SELECT queries are allowed, got INSTALL.
+  no   load httpfs
+         -> Only SELECT queries are allowed, got LOAD.
+  no   set enable_external_access = true
+         -> Only SELECT queries are allowed, got SET.
+  no   pragma database_list
+         -> Only SELECT queries are allowed, got PRAGMA.
+  no   describe mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got DESCRIBE.
+  no   summarize mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got SUMMARIZE.
+  no   explain select * from mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got EXPLAIN.
+  no   checkpoint
+         -> Only SELECT queries are allowed, got CHECKPOINT.
+  no   begin transaction
+         -> Only SELECT queries are allowed, got BEGIN.
+  no   select * from main.mart_bay_area_scorecard
+         -> Qualified table names are not allowed: main.mart_bay_area_scorecard.
+  no   select * from housing.main.mart_bay_area_scorecard
+         -> Qualified table names are not allowed: housing.main.mart_bay_area_scorecard.
+  no   select * from o.mart_bay_area_scorecard
+         -> Qualified table names are not allowed: o.mart_bay_area_scorecard.
+  no   select getenv('ANTHROPIC_API_KEY') from mart_bay_area_scorecard
+         -> Function getenv() is not allowed.
+  no   select current_setting('enable_external_access') from mart_bay_area_scorecard
+         -> Function current_setting() is not allowed.
+  no   select county, (select count(*) from duckdb_tables()) from mart_bay_area_scorecard
+         -> Function duckdb_tables() is not allowed.
+  no   select * from read_csv('x.csv')
+         -> Function read_csv() is not allowed.
+  no   select * from read_parquet('x.parquet')
+         -> Function read_parquet() is not allowed.
+  no   select * from read_text('/etc/passwd')
+         -> Function read_text() is not allowed.
+  no   select * from query_table('raw_redfin_county')
+         -> Function query_table() is not allowed.
+  no   select * from query('select * from raw_redfin_county')
+         -> Function query() is not allowed.
+  no   select * from duckdb_tables()
+         -> Function duckdb_tables() is not allowed.
+  no   select * from range(10)
+         -> Table functions are not allowed in FROM.
+  no   select * from glob('*')
+         -> Function glob() is not allowed.
+  no   SELECT * FROM "Raw_Redfin_County"
+         -> Table 'Raw_Redfin_County' is not allowed.
+  no   SELECT * FROM RAW_REDFIN_COUNTY
+         -> Table 'RAW_REDFIN_COUNTY' is not allowed.
+  no   select * from "main.mart_bay_area_scorecard"
+         -> Table 'main.mart_bay_area_scorecard' is not allowed.
+  no   select * from "mart_bay_area_scorecard "
+         -> Table 'mart_bay_area_scorecard ' is not allowed.
+  no   select * from "main"."raw_redfin_county"
+         -> Qualified table names are not allowed: "main"."raw_redfin_county".
+  no   DrOp TaBlE mart_bay_area_scorecard
+         -> Only SELECT queries are allowed, got DROP.
+  no   select county, (select max(median_sale_price) from stg_redfin__county_market) from mart_bay_area_scorecard
+         -> Table 'stg_redfin__county_market' is not allowed.
+  no   select * from mart_bay_area_scorecard where exists (select 1 from raw_redfin_county)
+         -> Table 'raw_redfin_county' is not allowed.
+  no   select * from mart_bay_area_scorecard order by (select count(*) from int_county_monthly)
+         -> Table 'int_county_monthly' is not allowed.
+  no   select county, case when (select 1 from bay_area_counties limit 1) = 1 then 1 end from mart_bay_area_scorecard
+         -> Table 'bay_area_counties' is not allowed.
+  no   select county, count(*) from mart_bay_area_price_trends group by county having count(*) > (select count(*) from raw_redfin_county)
+         -> Table 'raw_redfin_county' is not allowed.
+  no   select * from mart_bay_area_scorecard, raw_redfin_county
+         -> Table 'raw_redfin_county' is not allowed.
+  no   select * from mart_bay_area_scorecard, lateral (select * from raw_redfin_county) r
+         -> Table 'raw_redfin_county' is not allowed.
+  no   select * from mart_bay_area_scorecard natural join stg_redfin__county_market
+         -> Table 'stg_redfin__county_market' is not allowed.
+  no   select * from mart_bay_area_scorecard positional join raw_redfin_county
+         -> Table 'raw_redfin_county' is not allowed.
+  no   from raw_redfin_county
+         -> Table 'raw_redfin_county' is not allowed.
+  no   from raw_redfin_county select county
+         -> Table 'raw_redfin_county' is not allowed.
+  no   with a as (with raw_redfin_county as (select 1) select * from raw_redfin_county) select * from raw_redfin_county
+         -> Table 'raw_redfin_county' is not allowed.
+  no   with a as (select * from (with b as (select 1) select * from raw_redfin_county)) select * from a
+         -> Table 'raw_redfin_county' is not allowed.
+  no   select 'x'; drop table y
+         -> Expected exactly one statement, got 2.
+  no   table raw_redfin_county
+         -> Only SELECT queries are allowed, got TABLE.
+  no   pivot raw_redfin_county on property_type using sum(homes_sold)
+         -> Only SELECT queries are allowed, got PIVOT.
+  no   select * from (pivot raw_redfin_county on property_type using sum(homes_sold))
+         -> Table 'raw_redfin_county' is not allowed.
+  no   values (1), (2)
+         -> Only SELECT queries are allowed, got VALUES.
