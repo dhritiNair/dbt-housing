@@ -5,10 +5,11 @@ Run from app/:
   python eval/run_eval.py --split held_out   # held-out questions only, for the final check
   python eval/run_eval.py --check            # run the reference SQL only; no API calls
   python eval/run_eval.py --only q04_san_jose_supply --json report.json
+  python eval/run_eval.py --runs 1           # one pass per question instead of three
 
 Reference queries run at eval time against the same mart snapshot the pipeline
-reads, so expected answers follow the data. Every non-check run calls the
-Claude API once or twice per question.
+reads, so expected answers follow the data. Each question runs --runs times
+(default 3), and each run calls the Claude API once or twice.
 """
 
 import argparse
@@ -58,6 +59,7 @@ class Question:
 @dataclass
 class Result:
     id: str
+    run: int
     held_out: bool
     expected: str
     category: str
@@ -218,13 +220,14 @@ def _one_line(sql: str | None) -> str:
     return " ".join((sql or "").split())
 
 
-def score(q: Question, pipeline: Pipeline, reference: pd.DataFrame | None) -> Result:
+def score(q: Question, pipeline: Pipeline, reference: pd.DataFrame | None, run: int = 1) -> Result:
     start = time.monotonic()
     answer = pipeline.ask(q.question)
     seconds = time.monotonic() - start
     category, note = categorize(q, answer, reference)
     return Result(
         id=q.id,
+        run=run,
         held_out=q.held_out,
         expected=q.expected,
         category=category,
@@ -271,26 +274,51 @@ def check(questions: list[Question], db: MartDB) -> int:
     return 0
 
 
-def report(results: list[Result], split: str, model: str) -> None:
+def by_question(results: list[Result]) -> dict[str, list[Result]]:
+    grouped: dict[str, list[Result]] = {}
     for r in results:
-        mark = "PASS" if r.passed else "FAIL"
-        held = " [held out]" if r.held_out else ""
-        print(f"{mark}  {r.id:32} {r.category:18} {r.attempts} attempt(s), {r.seconds:.1f}s{held}")
-        if r.note and not r.passed:
-            print(f"      {r.note}")
+        grouped.setdefault(r.id, []).append(r)
+    return grouped
 
-    passed = sum(r.passed for r in results)
+
+def _counts(results: list[Result]) -> str:
     counts: dict[str, int] = {}
     for r in results:
         counts[r.category] = counts.get(r.category, 0) + 1
-    print(f"\nModel {model}, split {split}: {passed}/{len(results)} passed ({passed / len(results):.0%})")
-    print("Outcomes: " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
+    return ", ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+
+
+def report(results: list[Result], split: str, model: str, runs: int) -> None:
+    grouped = by_question(results)
+    for qid, rs in grouped.items():
+        passed = sum(r.passed for r in rs)
+        mark = "PASS" if passed == len(rs) else "FAIL"
+        held = " [held out]" if rs[0].held_out else ""
+        seconds = sum(r.seconds for r in rs) / len(rs)
+        print(f"{mark}  {qid:32} {passed} of {len(rs)}  {_counts(rs):34} avg {seconds:.1f}s{held}")
+        for r in rs:
+            if r.note and not r.passed:
+                print(f"      run {r.run}: {r.note}")
+
+    passed_runs = sum(r.passed for r in results)
+    always = sum(all(r.passed for r in rs) for rs in grouped.values())
+    print(f"\nModel {model}, split {split}, {runs} run(s) per question")
+    print(f"Runs passed: {passed_runs}/{len(results)} ({passed_runs / len(results):.0%})")
+    print(f"Questions passing every run: {always}/{len(grouped)}")
+    print("Outcomes: " + _counts(results))
 
     substituted = [r for r in results if r.category == "substituted_answer"]
     if substituted:
         print("\nSubstituted answers (mart data returned for an unsafe request; not passes):")
         for r in substituted:
-            print(f"  {r.id}: {r.note}")
+            print(f"  {r.id} run {r.run}: {r.note}")
+
+
+def positive_int(value: str) -> int:
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return number
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -298,6 +326,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--split", choices=["tuning", "held_out", "all"], default="tuning")
     parser.add_argument("--only", nargs="+", metavar="ID", help="run only these question ids")
     parser.add_argument("--check", action="store_true", help="run reference SQL only; no API calls")
+    parser.add_argument("--runs", type=positive_int, default=3, metavar="N",
+                        help="times to run each question (default 3)")
     parser.add_argument("--json", type=Path, metavar="PATH", help="write a JSON report")
     args = parser.parse_args(argv)
 
@@ -313,18 +343,24 @@ def main(argv: list[str] | None = None) -> int:
     pipeline = Pipeline.from_settings(settings)
     results = []
     for q in questions:
-        results.append(score(q, pipeline, references.get(q.id)))
-        print(f"  ran {q.id}", file=sys.stderr)
+        for run in range(1, args.runs + 1):
+            results.append(score(q, pipeline, references.get(q.id), run))
+            print(f"  ran {q.id} ({run} of {args.runs})", file=sys.stderr)
 
-    report(results, args.split, settings.model)
+    report(results, args.split, settings.model, args.runs)
     if args.json:
         args.json.write_text(json.dumps({
             "run_at": dt.datetime.now().isoformat(timespec="seconds"),
             "model": settings.model,
             "effort": settings.effort,
             "split": args.split,
-            "passed": sum(r.passed for r in results),
-            "total": len(results),
+            "runs": args.runs,
+            "passed_runs": sum(r.passed for r in results),
+            "total_runs": len(results),
+            "questions": [
+                {"id": qid, "passed_runs": sum(r.passed for r in rs), "runs": len(rs)}
+                for qid, rs in by_question(results).items()
+            ],
             "results": [asdict(r) for r in results],
         }, indent=2, default=str))
         print(f"\nWrote {args.json}")

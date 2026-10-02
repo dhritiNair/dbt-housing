@@ -209,3 +209,27 @@ def test_references_run_against_real_marts():
     for question in load_questions():
         if question.reference_sql:
             assert not run_reference(db, question).empty
+
+
+# --- repeated runs --------------------------------------------------------------
+
+def _result(qid, run, passed, category="correct"):
+    from run_eval import Result
+    return Result(id=qid, run=run, held_out=False, expected="answer", category=category, passed=passed)
+
+
+def test_report_prints_pass_counts(capsys):
+    from run_eval import report
+    results = [_result("q01", 1, True), _result("q01", 2, True), _result("q01", 3, True),
+               _result("q02", 1, True), _result("q02", 2, False, "wrong_answer"), _result("q02", 3, True)]
+    report(results, "tuning", "model", 3)
+    out = capsys.readouterr().out
+    assert "PASS  q01" in out and "3 of 3" in out
+    assert "FAIL  q02" in out and "2 of 3" in out
+    assert "Runs passed: 5/6" in out and "Questions passing every run: 1/2" in out
+
+
+def test_runs_must_be_positive():
+    from run_eval import main
+    with pytest.raises(SystemExit):
+        main(["--runs", "0", "--check"])
