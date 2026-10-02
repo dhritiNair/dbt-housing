@@ -1,4 +1,4 @@
-# Bay Area Housing Market dbt Analytics Project
+# Bay Area Housing Market dbt Analytics
 
 Monthly housing market analytics for the 9 Bay Area counties, built with
 **dbt + DuckDB** on Redfin's public market tracker (Jan 2012 to May 2026,
