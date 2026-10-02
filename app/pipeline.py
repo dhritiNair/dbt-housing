@@ -20,6 +20,7 @@ MAX_ATTEMPTS = 2  # the first try plus one retry with the error message
 class Attempt:
     sql: str
     error: str | None
+    stage: str | None = None  # where it failed: "guard" or "query"; None if it ran
 
 
 @dataclass
@@ -71,7 +72,8 @@ class Pipeline:
                 validated = validate(draft.sql, max_rows=self.settings.max_rows)
                 result = self.db.run(validated.sql)
             except (SQLGuardError, QueryError) as e:
-                attempts.append(Attempt(draft.sql, str(e)))
+                stage = "guard" if isinstance(e, SQLGuardError) else "query"
+                attempts.append(Attempt(draft.sql, str(e), stage))
                 failed = (draft.sql, str(e))
                 continue
 

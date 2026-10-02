@@ -27,10 +27,10 @@ class Settings:
     memory_limit: str = "256MB"
 
 
-def load_settings() -> Settings:
+def load_settings(require_key: bool = True) -> Settings:
     load_dotenv(PROJECT_ROOT / ".env", override=False)
     api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
-    if not api_key:
+    if require_key and not api_key:
         raise ConfigError(
             "ANTHROPIC_API_KEY is not set. Export it, or add it to the .env file in the project root."
         )

@@ -92,3 +92,8 @@ def test_empty_question_skips_the_model(db):
     writer = ScriptedWriter()
     result = Pipeline(Settings(api_key="unused"), db, writer).ask("   ")
     assert result.status == "failed" and writer.calls == []
+
+
+def test_attempts_record_the_failing_stage(db):
+    result, _ = run(db, answer("select * from raw_redfin_county"), answer(f"select nope from {SC}"))
+    assert [a.stage for a in result.attempts] == ["guard", "query"]
